@@ -366,6 +366,79 @@ export default function Home() {
         <div className="cook-bottom-tip">Little by little. Delicious things take time.</div>
       </div>}
 
+
+      {screen === "planner" && <div className="shell workspace-page">
+        <button className="back-link" onClick={() => goTo("home")}><Icon name="back"/> Back to cookbook</button>
+        <div className="workspace-heading">
+          <div><div className="eyebrow compact">A LITTLE PLANNING GOES A LONG WAY</div><h1>Dinner, <em>sorted.</em></h1><p>Pick what sounds good for each night. Build your grocery list from the week in one tap.</p></div>
+          <button className="primary-button" onClick={addPlanGroceries}><Icon name="basket"/> Shop this week's dinners <Icon name="arrow"/></button>
+        </div>
+        <div className="meal-grid">
+          {MEAL_DAYS.map((day, i) => {
+            const planned = recipes.find(recipe => recipe.id === mealPlan[day]);
+            return <div className={"meal-day " + (planned ? "planned" : "")} key={day}>
+              <div className="meal-day-top"><span>{day.toUpperCase()}</span><b>{i === 0 ? "START THE WEEK" : i === 6 ? "SUNDAY RESET" : "DINNER"}</b></div>
+              {planned ? <><RecipePhoto recipe={planned} className="meal-photo"/><h3>{planned.title}</h3><div className="meal-meta"><TimeLabel minutes={planned.minutes}/> · {planned.servings} servings</div></> : <div className="no-meal"><Icon name="plus" size={26}/><span>What's cooking?</span></div>}
+              <label className="day-select-label" htmlFor={"meal-"+day}>Choose a recipe</label>
+              <select id={"meal-"+day} className="meal-select" value={mealPlan[day] || ""} onChange={e => setMealPlan(p => ({ ...p, [day]: e.target.value }))}>
+                <option value="">No recipe planned</option>
+                {recipes.map(recipe => <option value={recipe.id} key={recipe.id}>{recipe.title}</option>)}
+              </select>
+              {planned && <button className="meal-view" onClick={() => viewRecipe(planned)}>View recipe <Icon name="arrow" size={15}/></button>}
+            </div>;
+          })}
+        </div>
+        <div className="planner-foot"><div><strong>{Object.values(mealPlan).filter(Boolean).length} dinners on the board</strong><p>Selections save on this device as you make them.</p></div><button onClick={() => { if (window.confirm("Clear your week’s dinner plan?")) setMealPlan({}); }}>Clear the week</button></div>
+        {dataMessage && <p className="data-message" role="status">{dataMessage}</p>}
+      </div>}
+
+      {screen === "groceries" && <div className="shell workspace-page">
+        <button className="back-link" onClick={() => goTo("home")}><Icon name="back"/> Back to cookbook</button>
+        <div className="workspace-heading">
+          <div><div className="eyebrow compact">EVERYTHING YOU NEED, NOTHING YOU DON'T</div><h1>The <em>grocery list.</em></h1><p>Add ingredients from any recipe, check things off in the store, and keep the little extras here too.</p></div>
+          <div className="list-count"><Icon name="basket" size={19}/><strong>{groceries.filter(item => !item.done).length}</strong><span>left to get</span></div>
+        </div>
+        <div className="grocery-layout">
+          <div className="grocery-content">
+            {groceryGroups.length === 0 && <div className="grocery-empty"><Icon name="basket" size={40}/><h2>All good things start with a list.</h2><p>Open a recipe and tap “Add ingredients to groceries,” or jot something down on the right.</p><button className="primary-button" onClick={() => goTo("home")}>Browse recipes <Icon name="arrow"/></button></div>}
+            {groceryGroups.map(group => <section className="grocery-group" key={group}><div className="grocery-group-head"><h2>{group}</h2><span>{groceries.filter(i => i.group === group && !i.done).length} remaining</span></div>
+              {groceries.filter(item => item.group === group).map(item => <div className={"grocery-entry "+(item.done ? "done" : "")} key={item.id}>
+                <label><input type="checkbox" checked={item.done} onChange={e => setGroceries(old => old.map(i => i.id === item.id ? {...i,done:e.target.checked} : i))}/><span className="check-ui"><Icon name="check" size={12}/></span><span className="grocery-entry-name">{item.text}<small>{item.source || "Added by you"}</small></span></label>
+                <button aria-label={"Remove "+item.text} onClick={() => setGroceries(old => old.filter(i => i.id !== item.id))}><Icon name="close" size={16}/></button>
+              </div>)}
+            </section>)}
+          </div>
+          <aside className="grocery-sidebar">
+            <h2>Add something</h2><p>Milk? Olive oil? That one thing you always forget?</p>
+            <form onSubmit={e => { e.preventDefault(); const text=groceryInput.trim(); if (!text) return; setGroceries(old => [...old,{id:crypto.randomUUID(),text,done:false,group:groceryGroup(text)}]); setGroceryInput(""); }}>
+              <label htmlFor="grocery-input">NEW ITEM</label><input id="grocery-input" placeholder="e.g. 2 lemons" value={groceryInput} onChange={e=>setGroceryInput(e.target.value)} required/>
+              <button type="submit"><Icon name="plus" size={16}/> Add to list</button>
+            </form>
+            <div className="grocery-sidebar-actions"><button onClick={() => setGroceries(old => old.filter(i=>!i.done))} disabled={!groceries.some(i=>i.done)}>Clear checked items</button><button onClick={() => { if (groceries.length && window.confirm("Clear your entire grocery list?")) setGroceries([]); }} disabled={!groceries.length}>Clear entire list</button></div>
+            <p className="privacy-hint">Your list is saved locally on this device.</p>
+          </aside>
+        </div>
+      </div>}
+
+      {editing && selected && <div className="modal-scrim" onMouseDown={e=>{ if (e.target===e.currentTarget) setEditing(false); }}>
+        <div className="import-modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+          <button className="modal-close icon-button" onClick={()=>setEditing(false)} aria-label="Close recipe editor"><Icon name="close"/></button>
+          <div className="eyebrow compact">MAKE IT YOUR OWN</div><h2 id="edit-title">Edit recipe<span className="brand-dot">.</span></h2>
+          <form onSubmit={saveEdit} className="manual-form">
+            <label className="field-label">NAME<input className="full-input" required value={editDraft.title} onChange={e=>setEditDraft(d=>({...d,title:e.target.value}))}/></label>
+            <label className="field-label">DESCRIPTION<input className="full-input" value={editDraft.description} onChange={e=>setEditDraft(d=>({...d,description:e.target.value}))}/></label>
+            <label className="field-label">CATEGORY<input className="full-input" value={editDraft.category} onChange={e=>setEditDraft(d=>({...d,category:e.target.value}))}/></label>
+            <div className="manual-row">
+              <label className="field-label">MINUTES<input className="full-input" type="number" min="1" required value={editDraft.minutes} onChange={e=>setEditDraft(d=>({...d,minutes:e.target.value}))}/></label>
+              <label className="field-label">SERVINGS<input className="full-input" type="number" min="1" required value={editDraft.servings} onChange={e=>setEditDraft(d=>({...d,servings:e.target.value}))}/></label>
+            </div>
+            <label className="field-label">INGREDIENTS <small>(ONE PER LINE)</small><textarea className="full-input" rows={6} required value={editDraft.ingredients} onChange={e=>setEditDraft(d=>({...d,ingredients:e.target.value}))}/></label>
+            <label className="field-label">STEPS <small>(ONE PER LINE)</small><textarea className="full-input" rows={8} required value={editDraft.steps} onChange={e=>setEditDraft(d=>({...d,steps:e.target.value}))}/></label>
+            <button className="full-primary" type="submit">Save changes <Icon name="check" size={18}/></button>
+          </form>
+        </div>
+      </div>}
+
       {importOpen && <div className="modal-scrim" onMouseDown={e => { if (e.target === e.currentTarget) setImportOpen(false); }}><div className="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title"><button className="modal-close icon-button" onClick={() => setImportOpen(false)} aria-label="Close"><Icon name="close" /></button><div className="eyebrow compact">LET&apos;S MAKE SOMETHING GOOD</div><h2 id="import-title">Add to your cookbook<span className="brand-dot">.</span></h2><p className="modal-intro">Keep the recipe. Lose the clutter.</p><div className="tab-switch"><button className={importType === "url" ? "selected" : ""} onClick={() => { setImportType("url"); setImportError(""); }}><Icon name="link" size={17} /> From a link</button><button className={importType === "manual" ? "selected" : ""} onClick={() => { setImportType("manual"); setImportError(""); }}><Icon name="edit" size={17} /> Write my own</button></div>
         {importType === "url" ? <form onSubmit={e => void importRecipe(e)}><label className="field-label" htmlFor="import-url">RECIPE WEBSITE URL</label><input className="full-input" id="import-url" type="url" placeholder="https://www.example.com/your-favorite-recipe" required value={url} onChange={e => setUrl(e.target.value)} autoFocus/><button className="full-primary" disabled={importing || !url.trim()} type="submit">{importing ? "Finding your recipe…" : "Import recipe"} {!importing && <Icon name="arrow" />}</button><p className="form-note">Works with websites that publish recipe metadata. Some websites block imports.</p></form> : <form onSubmit={addManual} className="manual-form"><label className="field-label">RECIPE NAME<input className="full-input" required value={manual.title} onChange={e => setManual(m => ({...m,title:e.target.value}))} placeholder="My best weeknight dinner" /></label><div className="manual-row"><label className="field-label">MINUTES<input className="full-input" min="1" type="number" value={manual.minutes} onChange={e => setManual(m => ({...m,minutes:e.target.value}))}/></label><label className="field-label">SERVINGS<input className="full-input" min="1" type="number" value={manual.servings} onChange={e => setManual(m => ({...m,servings:e.target.value}))}/></label></div><label className="field-label">INGREDIENTS <small>(ONE PER LINE)</small><textarea className="full-input" rows={4} required placeholder={"2 tbsp olive oil\n1 onion, chopped"} value={manual.ingredients} onChange={e => setManual(m => ({...m,ingredients:e.target.value}))} /></label><label className="field-label">STEPS <small>(ONE PER LINE)</small><textarea className="full-input" rows={4} required placeholder={"Heat the oil in a skillet.\nAdd onions and cook until soft."} value={manual.steps} onChange={e => setManual(m => ({...m,steps:e.target.value}))}/></label><button className="full-primary" type="submit">Save my recipe <Icon name="arrow" /></button></form>}
         {importError && <div className="form-error" role="alert">{importError}</div>}
