@@ -272,10 +272,11 @@ export default function Home() {
     <main>
       <header className="site-header">
         <div className="shell header-inner">
-          <button className="brand" onClick={() => setScreen("home")} aria-label="Mise home"><span className="brand-icon">m.</span><span>mise<span className="brand-dot">.</span></span></button>
+          <button className="brand" onClick={() => setScreen("home")} aria-label="StirCue home"><span className="brand-icon">s<span className="brand-dot">.</span></span><span>stir<span className="word-accent">cue</span><span className="brand-dot">.</span></span></button>
           <nav className="top-nav" aria-label="Main navigation">
             <button className={screen === "home" ? "nav-active" : ""} onClick={() => setScreen("home")}>My cookbook</button>
-            <button onClick={() => { setImportType("url"); setImportError(""); setImportOpen(true); }}>Import a recipe</button>
+            <button className={screen === "planner" ? "nav-active" : ""} onClick={() => goTo("planner")}>Meal planner</button>
+            <button className={screen === "groceries" ? "nav-active" : ""} onClick={() => goTo("groceries")}>Groceries {groceries.filter(i => !i.done).length ? "(" + groceries.filter(i => !i.done).length + ")" : ""}</button>
           </nav>
           <div className="header-actions">
             <button className="icon-button timer-icon" onClick={() => setTimerOpen(true)} aria-label="View timers"><Icon name="timer" size={21} />{timers.length > 0 && <span className="notif-dot" />}</button>
@@ -288,10 +289,10 @@ export default function Home() {
         <section className="home-hero">
           <div className="hero-copy">
             <div className="eyebrow"><span className="eyebrow-line" /> A BETTER WAY TO COOK</div>
-            <h1>Good food.<br/><em>Less fuss.</em></h1>
-            <p>Every recipe you love, without the noise. Save it, follow along, and find your flow in the kitchen.</p>
+            <h1>Good food.<br/><em>Right on cue.</em></h1>
+            <p>Your recipes, dinner plans, groceries, and step-by-step cooking — together in one beautiful place.</p>
             <button className="hero-cta" onClick={() => { setImportError(""); setImportOpen(true); }}><Icon name="plus" size={20} /> Import your first recipe <Icon name="arrow" size={20} /></button>
-            <div className="hero-sub"><Icon name="spark" size={17} /> From any recipe website. No account needed.</div>
+            <div className="hero-sub"><Icon name="spark" size={17} /> Your kitchen sidekick. No account needed.</div>
           </div>
           <button className="hero-image" onClick={() => viewRecipe(recipes[0] || starterRecipes[0])} aria-label="Explore the featured recipe">
             <img src="https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=1500&q=85" alt="Pasta plated with herbs" />
@@ -304,16 +305,22 @@ export default function Home() {
             <div><div className="eyebrow compact">YOUR KITCHEN, YOUR RULES</div><h2>Your cookbook <span className="count">{recipes.length}</span></h2><p>All your good ideas, in one delicious place.</p></div>
             <label className="search-field"><span aria-hidden="true">⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Find something delicious..." aria-label="Search saved recipes" /></label>
           </div>
+          <div className="cookbook-toolbar">
+            <button className={!onlyFavorites ? "pill active" : "pill"} onClick={() => setOnlyFavorites(false)}>All recipes</button>
+            <button className={onlyFavorites ? "pill active" : "pill"} onClick={() => setOnlyFavorites(true)}><Icon name="heart" size={15}/> Favorites ({Object.values(favorites).filter(Boolean).length})</button>
+            <button className="pill utility" onClick={() => goTo("planner")}><Icon name="calendar" size={15}/> Plan this week</button>
+            <button className="pill utility" onClick={() => goTo("groceries")}><Icon name="basket" size={15}/> Grocery list</button>
+          </div>
           <div className="recipe-grid">
-            {visibleRecipes.map(recipe => <button className="recipe-card" key={recipe.id} onClick={() => viewRecipe(recipe)}>
+            {visibleRecipes.map(recipe => <article className="recipe-card" key={recipe.id}><button className="recipe-card-target" onClick={() => viewRecipe(recipe)}>
               <RecipePhoto recipe={recipe} />
               <div className="recipe-card-body"><div className="card-category">{recipe.category}</div><div className="card-title-row"><h3>{recipe.title}</h3><span className="card-arrow"><Icon name="arrow" size={19} /></span></div><p>{recipe.description}</p><div className="card-meta"><TimeLabel minutes={recipe.minutes} /><span className="meta-unit"><Icon name="people" size={16} /> {recipe.servings} servings</span></div></div>
-            </button>)}
+            </button><button className={"favorite-chip " + (favorites[recipe.id] ? "favorited" : "")} onClick={() => toggleFavorite(recipe.id)} aria-label={(favorites[recipe.id] ? "Remove " : "Favorite ") + recipe.title} aria-pressed={!!favorites[recipe.id]}><Icon name="heart" size={18} /></button></article>)}
             <button className="empty-card" onClick={() => { setImportType("url"); setImportOpen(true); }}><span className="empty-plus"><Icon name="plus" size={28} /></span><strong>Something missing?</strong><span>Bring another favorite to the table.</span><b>Add a recipe <Icon name="arrow" size={15} /></b></button>
           </div>
           {visibleRecipes.length === 0 && <p className="no-search">Nothing matched “{search}”. Try a different search.</p>}
         </section>
-        <footer className="footer"><span>mise<span className="brand-dot">.</span></span><span>Cook more. Scroll less. Made for the joy of it.</span><span>VERSION 0.1</span></footer>
+        <footer className="footer"><span>stircue<span className="brand-dot">.</span></span><span>Cook more. Scroll less. Made for the joy of it.</span><span>VERSION 0.2</span></footer>
       </div>}
 
       {screen === "recipe" && selected && <div className="shell detail-page">
