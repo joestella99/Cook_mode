@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createGroceries, groceryGroup, MEAL_DAYS, parseRecipeFromBackup, type GroceryItem, type MealPlan, type CookProgress } from "../lib/experience";
 import { formatTime, scaledIngredient, starterRecipes, type Recipe } from "../lib/recipes";
 
-type Screen = "home" | "recipe" | "cook";
+type Screen = "home" | "recipe" | "cook" | "groceries" | "planner";
 type Timer = { id: string; title: string; endAt: number; duration: number };
 const LIBRARY_KEY = "mise:library:v1";
 const CHECKS_KEY = "mise:checks:v1";
 const TIMER_KEY = "mise:timers:v1";
+const FAVORITES_KEY = "stircue:favorites:v1";
+const GROCERY_KEY = "stircue:groceries:v1";
+const PLAN_KEY = "stircue:mealplan:v1";
+const PROGRESS_KEY = "stircue:progress:v1";
+const NOTES_KEY = "stircue:notes:v1";
 
 function Icon({ name, size = 19 }: { name: string; size?: number }) {
   const shared = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true as const };
@@ -26,7 +32,15 @@ function Icon({ name, size = 19 }: { name: string; size?: number }) {
     edit: <><path d="M14 4 20 10M4 20l4.5-1 11-11a3 3 0 0 0-4-4l-11 11z" /></>,
     trash: <><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6" /></>,
     share: <><path d="M12 16V3m-5 5 5-5 5 5M5 13v7h14v-7" /></>,
-    chef: <><path d="M6 14a5 5 0 0 1-1-9 5 5 0 0 1 9-1 5 5 0 1 1 5 9v7H6zM6 17h13" /></>
+    chef: <><path d="M6 14a5 5 0 0 1-1-9 5 5 0 0 1 9-1 5 5 0 1 1 5 9v7H6zM6 17h13" /></>,
+    heart: <path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/>,
+    basket: <><path d="M3 10h18l-2 11H5zM8 10l4-7 4 7M9 14v4M15 14v4"/></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></>,
+    volume: <><path d="M4 9v6h4l5 4V5L8 9zM17 8a6 6 0 0 1 0 8"/></>,
+    download: <><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/></>,
+    upload: <><path d="M12 17V5m-4 4 4-4 4 4M4 17v4h16v-4"/></>,
+    more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>
+
   };
   return <svg {...shared}>{paths[name] || paths.spark}</svg>;
 }
@@ -60,9 +74,21 @@ export default function Home() {
   const [manual, setManual] = useState({ title: "", minutes: "30", servings: "2", ingredients: "", steps: "" });
   const [customMinutes, setCustomMinutes] = useState("5");
   const [search, setSearch] = useState("");
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [groceries, setGroceries] = useState<GroceryItem[]>([]);
+  const [mealPlan, setMealPlan] = useState<MealPlan>({});
+  const [progress, setProgress] = useState<CookProgress>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [groceryInput, setGroceryInput] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState({ title: "", description: "", category: "", minutes: "30", servings: "2", ingredients: "", steps: "" });
+  const [dataMessage, setDataMessage] = useState("");
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   const selected = recipes.find(r => r.id === selectedId) ?? recipes[0];
   const activeTimers = timers.filter(t => t.endAt > now).length;
-  const visibleRecipes = useMemo(() => recipes.filter(r => (r.title + " " + r.category).toLowerCase().includes(search.toLowerCase())), [recipes, search]);
+  const visibleRecipes = useMemo(() => recipes.filter(r => (!onlyFavorites || favorites[r.id]) && (r.title + " " + r.category + " " + r.ingredients.join(" ")).toLowerCase().includes(search.toLowerCase())), [recipes, search, onlyFavorites, favorites]);
+  const groceryGroups = useMemo(() => [...new Set(groceries.map(item => item.group))].sort((a, b) => a.localeCompare(b)), [groceries]);
 
   useEffect(() => {
     try {
@@ -72,12 +98,22 @@ export default function Home() {
       if (savedChecks) setChecks(JSON.parse(savedChecks));
       const savedTimers = localStorage.getItem(TIMER_KEY);
       if (savedTimers) setTimers(JSON.parse(savedTimers));
+      const fav = localStorage.getItem(FAVORITES_KEY); if (fav) setFavorites(JSON.parse(fav));
+      const list = localStorage.getItem(GROCERY_KEY); if (list) setGroceries(JSON.parse(list));
+      const plan = localStorage.getItem(PLAN_KEY); if (plan) setMealPlan(JSON.parse(plan));
+      const prog = localStorage.getItem(PROGRESS_KEY); if (prog) setProgress(JSON.parse(prog));
+      const note = localStorage.getItem(NOTES_KEY); if (note) setNotes(JSON.parse(note));
     } catch { /* gracefully use starter recipes */ }
     setReady(true);
   }, []);
   useEffect(() => { if (ready) localStorage.setItem(LIBRARY_KEY, JSON.stringify(recipes)); }, [ready, recipes]);
   useEffect(() => { if (ready) localStorage.setItem(CHECKS_KEY, JSON.stringify(checks)); }, [ready, checks]);
   useEffect(() => { if (ready) localStorage.setItem(TIMER_KEY, JSON.stringify(timers)); }, [ready, timers]);
+  useEffect(() => { if (ready) localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); }, [ready, favorites]);
+  useEffect(() => { if (ready) localStorage.setItem(GROCERY_KEY, JSON.stringify(groceries)); }, [ready, groceries]);
+  useEffect(() => { if (ready) localStorage.setItem(PLAN_KEY, JSON.stringify(mealPlan)); }, [ready, mealPlan]);
+  useEffect(() => { if (ready) localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); }, [ready, progress]);
+  useEffect(() => { if (ready) localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); }, [ready, notes]);
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
@@ -104,9 +140,66 @@ export default function Home() {
   }
   function cook(recipe: Recipe) {
     setSelectedId(recipe.id);
-    setCookIndex(0);
+    setCookIndex(progress[recipe.id] || 0);
     setScreen("cook");
     window.scrollTo(0, 0);
+  }
+  function goTo(screen: Screen) { setScreen(screen); window.scrollTo(0, 0); }
+  function toggleFavorite(id: string) { setFavorites(old => ({ ...old, [id]: !old[id] })); }
+  function addToGrocery(recipe: Recipe) {
+    setGroceries(old => [...old, ...createGroceries(recipe, servings)]);
+    goTo("groceries");
+  }
+  function addPlanGroceries() {
+    const entries = Object.values(mealPlan).map(id => recipes.find(r => r.id === id)).filter((r): r is Recipe => !!r);
+    if (!entries.length) { setDataMessage("Choose at least one dinner first."); return; }
+    setGroceries(old => [...old, ...entries.flatMap(r => createGroceries(r))]);
+    setDataMessage("");
+    goTo("groceries");
+  }
+  function startEditing(recipe: Recipe) {
+    setEditDraft({title:recipe.title, description:recipe.description, category:recipe.category, minutes:String(recipe.minutes), servings:String(recipe.servings), ingredients:recipe.ingredients.join("\n"), steps:recipe.steps.map(s => s.text).join("\n")});
+    setEditing(true);
+  }
+  function saveEdit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!selected) return;
+    const ingredients = editDraft.ingredients.split("\n").map(v => v.trim()).filter(Boolean);
+    const lines = editDraft.steps.split("\n").map(v => v.trim()).filter(Boolean);
+    if (!ingredients.length || !lines.length || !editDraft.title.trim()) return;
+    const newSteps = lines.map((text, i) => ({ id: "edited-" + i, text }));
+    setRecipes(old => old.map(r => r.id === selected.id ? { ...r, title:editDraft.title.trim(), description:editDraft.description.trim(), category:editDraft.category.trim() || "My recipes", minutes: Math.max(1, Number(editDraft.minutes)||30), servings:Math.max(1, Number(editDraft.servings)||2), ingredients, steps:newSteps } : r));
+    setServings(Math.max(1, Number(editDraft.servings)||2));
+    setEditing(false);
+  }
+  function exportBackup() {
+    const contents = JSON.stringify({version:2, app:"StirCue", exportedAt:new Date().toISOString(), recipes, favorites, groceries, mealPlan, notes, progress}, null, 2);
+    const href = URL.createObjectURL(new Blob([contents], {type:"application/json"}));
+    const a = document.createElement("a"); a.href=href; a.download="stircue-backup.json"; a.click(); URL.revokeObjectURL(href);
+  }
+  async function restoreBackup(file?: File) {
+    if (!file || file.size > 5000000) { setDataMessage("Choose a backup under 5 MB."); return; }
+    try {
+      const data = JSON.parse(await file.text()) as Record<string, unknown>;
+      if (data.app !== "StirCue" || !Array.isArray(data.recipes)) throw new Error("This isn't a StirCue backup.");
+      const restored = parseRecipeFromBackup(data.recipes);
+      if (!restored.length) throw new Error("There are no valid recipes in the backup.");
+      if (!window.confirm("Replace the cookbook and saved lists on this device with the backup?")) return;
+      setRecipes(restored);
+      setFavorites(data.favorites && typeof data.favorites==="object" ? data.favorites as Record<string,boolean> : {});
+      setGroceries(Array.isArray(data.groceries) ? data.groceries.filter(x => typeof x?.text === "string") as GroceryItem[] : []);
+      setMealPlan(data.mealPlan && typeof data.mealPlan==="object" ? data.mealPlan as MealPlan : {});
+      setNotes(data.notes && typeof data.notes==="object" ? data.notes as Record<string,string> : {});
+      setProgress(data.progress && typeof data.progress==="object" ? data.progress as CookProgress : {});
+      setDataMessage("Backup restored.");
+    } catch (e) { setDataMessage(e instanceof Error ? e.message : "Couldn't read this backup."); }
+  }
+  function readStep(text: string) {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = .91; utterance.lang = "en-US";
+    window.speechSynthesis.speak(utterance);
   }
   function addRecipe(recipe: Recipe) {
     setRecipes(prev => [recipe, ...prev.filter(r => r.id !== recipe.id)]);
@@ -156,16 +249,24 @@ export default function Home() {
   function deleteRecipe(recipe: Recipe) {
     if (!window.confirm("Remove “" + recipe.title + "” from your cookbook?")) return;
     setRecipes(rs => rs.filter(r => r.id !== recipe.id));
+    setMealPlan(p => Object.fromEntries(Object.entries(p).filter(([, id]) => id !== recipe.id)));
     setScreen("home");
   }
   async function share(recipe: Recipe) {
-    const shareData = { title: recipe.title, text: "A recipe from my Mise cookbook", url: recipe.sourceUrl || location.href };
+    const shareData = { title: recipe.title, text: "A recipe from my StirCue cookbook", url: recipe.sourceUrl || location.href };
     try { if (navigator.share) await navigator.share(shareData); else await navigator.clipboard.writeText(shareData.url); }
     catch { /* user dismissed */ }
   }
   const completed = selected ? selected.ingredients.filter((_, i) => checks[selected.id + ":" + i]).length : 0;
   const factor = selected ? servings / selected.servings : 1;
   const currentStep = selected?.steps[cookIndex];
+  useEffect(() => {
+    if (ready && screen === "cook" && selected) setProgress(old => old[selected.id] === cookIndex ? old : ({ ...old, [selected.id]:cookIndex }));
+  }, [cookIndex, screen, selected?.id, ready]);
+  useEffect(() => {
+    if (screen === "cook" && voiceEnabled && currentStep) readStep(currentStep.text);
+    return () => { if ("speechSynthesis" in window) window.speechSynthesis.cancel(); };
+  }, [cookIndex, screen, voiceEnabled, selected?.id]);
 
   return (
     <main>
