@@ -1,7 +1,7 @@
 {
-  "name": "Mise — Cook Mode",
-  "short_name": "Mise",
-  "description": "Your recipes, beautifully simplified.",
+  "name": "StirCue — Cook Mode",
+  "short_name": "StirCue",
+  "description": "Good food, right on cue.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F9F7F2",
