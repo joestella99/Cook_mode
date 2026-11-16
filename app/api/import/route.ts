@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { load } from "cheerio";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import type { Recipe, Step } from "@/lib/recipes";
+import type { Recipe, Step } from "../../../lib/recipes";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
