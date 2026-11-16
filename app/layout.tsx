@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mise — your kitchen, in flow",
+  title: "StirCue — good food, right on cue",
   description: "Save recipes from anywhere and cook them one step at a time.",
-  applicationName: "Mise",
-  appleWebApp: { capable: true, title: "Mise", statusBarStyle: "default" },
+  applicationName: "StirCue",
+  appleWebApp: { capable: true, title: "StirCue", statusBarStyle: "default" },
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg", apple: "/icon.svg" }
 };
