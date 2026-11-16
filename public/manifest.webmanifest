@@ -1,0 +1,10 @@
+{
+  "name": "Mise — Cook Mode",
+  "short_name": "Mise",
+  "description": "Your recipes, beautifully simplified.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9F7F2",
+  "theme_color": "#F9F7F2",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
