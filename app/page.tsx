@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatTime, scaledIngredient, starterRecipes, type Recipe } from "@/lib/recipes";
+import { formatTime, scaledIngredient, starterRecipes, type Recipe } from "../lib/recipes";
 
 type Screen = "home" | "recipe" | "cook";
 type Timer = { id: string; title: string; endAt: number; duration: number };
